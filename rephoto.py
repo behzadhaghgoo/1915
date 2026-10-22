@@ -132,7 +132,10 @@ def align(pid):
     W_ = 520; Hh = int(W_ * asp)
     now = persp(eq, hd, pt, fov, W_, Hh, ph); then = cv2.resize(H0, (W_, Hh))
     Image.fromarray(np.concatenate([then, now, (0.5 * then + 0.5 * now).astype(np.uint8)], 1)).save(f'{QA}/{pid}.jpg', quality=82)
-    return [p.id, round(p.lat, 7), round(p.lon, 7), round(hd, 2), round(pt, 2), round(fov, 2), n, str(p.date or '')], 'ok'
+    # Google's viewer levels each panorama by its tilt; the raw tiles are not leveled. Convert pitch to the viewer's frame.
+    dh = math.radians(hd - ph)
+    pt_view = pt - (math.degrees(p.pitch or 0) * math.cos(dh) + math.degrees(p.roll or 0) * math.sin(dh))
+    return [p.id, round(p.lat, 7), round(p.lon, 7), round(hd, 2), round(pt_view, 2), round(fov, 2), n, str(p.date or '')], 'ok'
 
 
 sys.path.insert(0, '/workspace')
