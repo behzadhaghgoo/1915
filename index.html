@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0a08">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>1915: see San Francisco a century ago</title>
+<meta property="og:title" content="1915">
+<meta property="og:description" content="Point your phone at San Francisco and see the same spot a hundred years ago.">
+<style>
+:root{--ink:#f4ede0;--soft:rgba(244,237,224,.68);--faint:rgba(244,237,224,.42);--sepia:#d8b37a;--bg:#0b0a08;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus{outline:none}
+.screen{position:fixed;inset:0}
+.hidden{display:none!important}
+
+/* intro */
+#intro{display:flex;flex-direction:column;justify-content:flex-end;padding:0 28px calc(36px + env(safe-area-inset-bottom));background:#0b0a08}
+#intro .bgimg{position:absolute;inset:0;background-size:cover;background-position:center;filter:sepia(.55) contrast(1.05) brightness(.55)}
+#intro .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,10,8,.15) 0%,rgba(11,10,8,.35) 45%,rgba(11,10,8,.94) 78%)}
+#intro .inner{position:relative;max-width:520px}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--sepia)}
+#intro h1{font-family:var(--serif);font-weight:400;font-size:clamp(96px,30vw,168px);line-height:.86;margin:14px 0 18px;letter-spacing:-.02em}
+#intro p{font-size:17px;line-height:1.45;color:var(--soft);margin:0 0 28px;max-width:420px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;height:54px;border-radius:14px;font-size:16px;font-weight:600}
+.btn.primary{background:var(--ink);color:#16130e}
+.btn.ghost{margin-top:10px;color:var(--ink);border:1px solid rgba(244,237,224,.22)}
+.credit{margin-top:22px;font-size:11.5px;line-height:1.5;color:var(--faint)}
+.credit a{color:var(--faint)}
+
+/* viewer */
+#view{background:#000;touch-action:none;user-select:none;-webkit-user-select:none}
+#cam,#now{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#then{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:sepia(.25) contrast(1.06);transition:opacity .35s}
+#then.loading{opacity:.0}
+#wipe{position:absolute;top:0;bottom:0;width:0;border-left:1px solid rgba(255,255,255,.85);pointer-events:none}
+#wipe .knob{position:absolute;top:50%;left:-19px;width:38px;height:38px;margin-top:-19px;border-radius:50%;background:rgba(11,10,8,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center}
+.tag{position:absolute;top:50%;margin-top:30px;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.6)}
+#tagNow{right:12px}#tagThen{left:12px}
+.topfade{position:absolute;left:0;right:0;top:0;height:220px;background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,0));pointer-events:none}
+.botfade{position:absolute;left:0;right:0;bottom:0;height:260px;background:linear-gradient(0deg,rgba(0,0,0,.82),rgba(0,0,0,0));pointer-events:none}
+#top{position:absolute;left:0;right:0;top:0;padding:calc(14px + env(safe-area-inset-top)) 20px 0;display:flex;gap:14px;align-items:flex-start;pointer-events:none}
+#top .meta{flex:1;min-width:0}
+#year{font-family:var(--serif);font-size:64px;line-height:.9;letter-spacing:-.02em}
+#title{margin-top:8px;font-size:15px;line-height:1.35;color:var(--ink);max-width:560px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#where{margin-top:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sepia)}
+.iconbtn{pointer-events:auto;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#bottom{position:absolute;left:0;right:0;bottom:0;padding:0 0 calc(14px + env(safe-area-inset-bottom))}
+#controls{display:flex;align-items:center;gap:10px;padding:0 16px 12px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:32px;padding:0 12px;border-radius:16px;font-size:13px;background:rgba(255,255,255,.12);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--soft)}
+.chip.on{background:var(--ink);color:#16130e}
+#listen{flex:none;height:40px;padding:0 14px 0 12px;border-radius:20px;display:flex;align-items:center;gap:8px;background:var(--sepia);color:#16130e;font-weight:600;font-size:14px}
+#listen.playing{background:var(--ink)}
+#strip{display:flex;gap:6px;overflow-x:auto;padding:0 16px;scrollbar-width:none;scroll-snap-type:x proximity}
+#strip::-webkit-scrollbar{display:none}
+.th{flex:none;width:76px;height:56px;border-radius:6px;overflow:hidden;position:relative;scroll-snap-align:center;opacity:.72;border:1px solid rgba(255,255,255,.12)}
+.th.on{opacity:1;border:2px solid var(--ink)}
+.th img{width:100%;height:100%;object-fit:cover;filter:sepia(.3);display:block}
+.th .yr{position:absolute;left:4px;bottom:3px;font-family:var(--mono);font-size:9px;color:#fff;text-shadow:0 1px 3px #000}
+.th .dot{position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--sepia)}
+#radar{position:relative;flex:none;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18)}
+#radar .cone{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -35deg,rgba(216,179,122,.45) 0 70deg,transparent 70deg)}
+#radar i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;margin:-1.5px 0 0 -1.5px}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:0 28px;background:rgba(11,10,8,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#empty h2{font-family:var(--serif);font-weight:400;font-size:34px;margin:10px 0 10px;line-height:1.05}
+#empty p{color:var(--soft);font-size:15px;line-height:1.45;margin:0 0 20px}
+.spots{display:grid;gap:8px}
+.spot{height:48px;border-radius:12px;border:1px solid rgba(244,237,224,.22);text-align:left;padding:0 16px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.spot span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+#toast{position:absolute;left:50%;top:calc(50% - 90px);transform:translateX(-50%);padding:8px 14px;border-radius:18px;background:rgba(0,0,0,.6);font-size:13px;color:var(--ink);opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<section id="intro" class="screen">
+  <div class="bgimg" style="background-image:url('https://s3-us-west-1.amazonaws.com/oldsf/images/AAE-0686.jpg')"></div>
+  <div class="shade"></div>
+  <div class="inner">
+    <div class="eyebrow">San Francisco · then and now</div>
+    <h1>1915</h1>
+    <p>Point your phone at any corner of the city and see the same spot a hundred years ago. 13,256 photographs from the San Francisco Public Library, placed where they were taken.</p>
+    <button class="btn primary" id="go">Look back</button>
+    <button class="btn ghost" id="demo">I'm not in SF, take me to the Palace of Fine Arts</button>
+    <div class="credit">Photographs: San Francisco Historical Photograph Collection, San Francisco Public Library, geocoded by <a href="https://www.oldsf.org" target="_blank" rel="noreferrer">OldSF</a>. Present-day Palace: Carol M. Highsmith, Library of Congress.</div>
+  </div>
+</section>
+
+<section id="view" class="screen hidden">
+  <video id="cam" playsinline muted autoplay class="hidden"></video>
+  <img id="now" class="hidden" alt="">
+  <img id="then" alt="">
+  <div id="wipe"><div class="knob"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 5 3 9l3.5 4M11.5 5 15 9l-3.5 4"/></svg></div></div>
+  <div class="tag" id="tagThen">Then</div><div class="tag" id="tagNow">Now</div>
+  <div class="topfade"></div><div class="botfade"></div>
+  <div id="top">
+    <div class="meta"><div id="year">1915</div><div id="title"></div><div id="where"></div></div>
+    <button class="iconbtn" id="close" aria-label="Back"><svg width="16" height="16" viewBox="0 0 16 16" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+  </div>
+  <div id="bottom">
+    <div id="controls">
+      <div class="chips" id="eras"></div>
+      <div id="radar"><div class="cone"></div></div>
+      <button id="listen"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg><span>Listen</span></button>
+    </div>
+    <div id="strip"></div>
+  </div>
+  <div id="toast"></div>
+  <div id="empty" class="hidden">
+    <div class="eyebrow">Nothing from the archive here</div>
+    <h2>This archive covers San Francisco.</h2>
+    <p>Keep your camera on and jump to a spot in the city to try it.</p>
+    <div class="spots" id="spots"></div>
+  </div>
+</section>
+
+<script>
+const DATA_URL = 'data/photos.json';
+const NOW_URL = 'img/palace-today.jpg';
+const AUDIO = {"AAE-0670": "audio/AAE-0670.mp3", "AAE-0666": "audio/AAE-0666.mp3", "AAE-0686": "audio/AAE-0686.mp3", "AAE-0693": "audio/AAE-0693.mp3", "AAE-0682": "audio/AAE-0682.mp3"};
+const IMG = (id) => 'https://s3-us-west-1.amazonaws.com/oldsf/images/' + id + '.jpg';
+const THUMB = (id) => 'https://s3-us-west-1.amazonaws.com/oldsf/thumb/' + id + '.jpg';
+const PALACE = { lat: 37.80290, lon: -122.44758, name: 'Palace of Fine Arts' };
+const SPOTS = [
+  { lat: 37.80290, lon: -122.44758, name: 'Palace of Fine Arts', note: '1915 Expo' },
+  { lat: 37.79540, lon: -122.39370, name: 'Ferry Building', note: 'Embarcadero' },
+  { lat: 37.78560, lon: -122.40580, name: 'Market & 4th', note: 'After 1906' },
+  { lat: 37.76430, lon: -122.42690, name: 'Mission Dolores', note: '1850s on' },
+  { lat: 37.80760, lon: -122.47500, name: 'Crissy Field', note: 'Presidio' },
+];
+const ERAS = [
+  { k: 'all', label: 'All years', from: 1850, to: 2000 },
+  { k: '1906', label: '1906', from: 1905, to: 1907 },
+  { k: '1915', label: '1915 Expo', from: 1912, to: 1916 },
+  { k: '20s', label: '1920s-40s', from: 1917, to: 1949 },
+  { k: '50s', label: '1950s+', from: 1950, to: 2000 },
+];
+const $ = (id) => document.getElementById(id);
+let photos = null, pos = null, heading = null, simulated = false, era = 'all';
+let list = [], cur = null, pinned = false, wipeX = 0.5, audioEl = null;
+
+const loadData = fetch(DATA_URL).then((r) => r.json()).then((rows) => {
+  photos = rows.map((r) => ({ id: r[0], lat: r[1], lon: r[2], y0: r[3], y1: r[4], title: r[5], w: r[6], h: r[7] }));
+});
+
+function dist(a, b, c, d) {
+  const R = 6371000, p = Math.PI / 180;
+  const x = Math.sin((c - a) * p / 2) ** 2 + Math.cos(a * p) * Math.cos(c * p) * Math.sin((d - b) * p / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function bearing(a, b, c, d) {
+  const p = Math.PI / 180, y = Math.sin((d - b) * p) * Math.cos(c * p);
+  const x = Math.cos(a * p) * Math.sin(c * p) - Math.sin(a * p) * Math.cos(c * p) * Math.cos((d - b) * p);
+  return (Math.atan2(y, x) / p + 360) % 360;
+}
+const angDiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+function yearLabel(p) { return p.y0 === p.y1 ? String(p.y0) : (p.y0 <= 1850 && p.y1 >= 1999 ? 'Undated' : p.y0 + '-' + String(p.y1).slice(2)); }
+function cleanTitle(t) { return (t || 'Untitled').replace(/&#59;/g, ';').replace(/\s+/g, ' ').trim(); }
+
+function rank() {
+  if (!photos || !pos) return;
+  const e = ERAS.find((x) => x.k === era);
+  let radius = 450, out = [];
+  while (radius <= 2400) {
+    out = [];
+    for (const p of photos) {
+      if (p.y1 < e.from || p.y0 > e.to) continue;
+      if (e.k === 'all' && p.y0 <= 1850 && p.y1 >= 1999) continue;
+      const dd = dist(pos.lat, pos.lon, p.lat, p.lon);
+      if (dd > radius) continue;
+      const br = bearing(pos.lat, pos.lon, p.lat, p.lon);
+      const ahead = dd < 90 || heading == null ? true : angDiff(br, heading) < 35;
+      out.push(Object.assign({}, p, { d: dd, br, ahead }));
+    }
+    if (out.length >= 14 || radius >= 2400) break;
+    radius *= 2;
+  }
+  out.sort((a, b) => (b.ahead - a.ahead) || ((AUDIO[b.id] ? 1 : 0) - (AUDIO[a.id] ? 1 : 0)) || (a.d - b.d));
+  list = out.slice(0, 60);
+  $('empty').classList.toggle('hidden', list.length > 0);
+  renderStrip(); renderRadar();
+  if (!list.length) return;
+  if (!cur || (!pinned && list[0].id !== cur.id && !list.slice(0, 3).some((x) => x.id === cur.id))) select(list[0], false);
+  else if (cur) { const u = list.find((x) => x.id === cur.id); if (u) { cur = u; renderMeta(); } }
+}
+
+function renderStrip() {
+  const s = $('strip');
+  s.innerHTML = '';
+  for (const p of list) {
+    const b = document.createElement('button');
+    b.className = 'th' + (cur && cur.id === p.id ? ' on' : '');
+    b.innerHTML = '<img loading="lazy" alt="" src="' + THUMB(p.id) + '"><span class="yr">' + yearLabel(p) + '</span>' + (AUDIO[p.id] ? '<span class="dot"></span>' : '');
+    b.onclick = () => { pinned = true; select(p, true); };
+    s.appendChild(b);
+  }
+}
+function renderRadar() {
+  const r = $('radar');
+  r.querySelectorAll('i').forEach((x) => x.remove());
+  r.querySelector('.cone').style.transform = 'rotate(' + 0 + 'deg)';
+  for (const p of list.slice(0, 30)) {
+    const rel = ((p.br - (heading || 0)) + 360) % 360 * Math.PI / 180;
+    const rr = Math.min(1, p.d / 600) * 16 + 2;
+    const i = document.createElement('i');
+    i.style.left = (20 + Math.sin(rel) * rr) + 'px'; i.style.top = (20 - Math.cos(rel) * rr) + 'px';
+    if (cur && p.id === cur.id) { i.style.background = '#d8b37a'; i.style.width = i.style.height = '5px'; i.style.margin = '-2.5px 0 0 -2.5px'; }
+    r.appendChild(i);
+  }
+}
+function renderMeta() {
+  if (!cur) return;
+  $('year').textContent = yearLabel(cur);
+  $('title').textContent = cleanTitle(cur.title);
+  let w;
+  if (cur.d < 90) w = 'Right here';
+  else {
+    const m = cur.d < 1000 ? Math.round(cur.d / 10) * 10 + ' m' : (cur.d / 1000).toFixed(1) + ' km';
+    if (heading == null) w = m + ' away';
+    else { const a = ((cur.br - heading) + 540) % 360 - 180; w = m + (Math.abs(a) < 35 ? ' ahead' : a > 0 ? ' to your right' : ' to your left'); }
+  }
+  $('where').textContent = w + (simulated ? ' · ' + (pos.name || '') : '');
+  $('listen').querySelector('span').textContent = AUDIO[cur.id] ? 'Listen' : 'Read';
+}
+function select(p, user) {
+  stopAudio();
+  cur = p;
+  const img = $('then');
+  img.classList.add('loading');
+  const pre = new Image();
+  pre.onload = () => { img.src = pre.src; img.classList.remove('loading'); };
+  pre.src = IMG(p.id);
+  renderMeta(); renderRadar();
+  document.querySelectorAll('.th').forEach((el, i) => el.classList.toggle('on', list[i] && list[i].id === p.id));
+  const on = document.querySelector('.th.on');
+  if (on && user) on.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+}
+
+function setWipe(x) {
+  wipeX = Math.max(0, Math.min(1, x));
+  const pct = wipeX * 100;
+  $('then').style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+  $('wipe').style.left = pct + '%';
+  $('tagThen').style.opacity = wipeX > 0.12 ? 1 : 0;
+  $('tagNow').style.opacity = wipeX < 0.88 ? 1 : 0;
+}
+let dragging = false, downX = 0, downY = 0;
+$('view').addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#bottom,#top button,#empty')) return;
+  dragging = true; downX = e.clientX; downY = e.clientY; setWipe(e.clientX / innerWidth);
+});
+addEventListener('pointermove', (e) => { if (dragging) setWipe(e.clientX / innerWidth); });
+addEventListener('pointerup', () => { dragging = false; });
+
+function stopAudio() {
+  if (audioEl) { audioEl.pause(); audioEl = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  $('listen').classList.remove('playing');
+}
+$('listen').onclick = () => {
+  if ($('listen').classList.contains('playing')) { stopAudio(); return; }
+  if (!cur) return;
+  $('listen').classList.add('playing');
+  if (AUDIO[cur.id]) {
+    audioEl = new Audio(AUDIO[cur.id]);
+    audioEl.onended = stopAudio;
+    audioEl.play().catch(stopAudio);
+  } else if (window.speechSynthesis) {
+    const u = new SpeechSynthesisUtterance(cleanTitle(cur.title) + '. ' + (yearLabel(cur) === 'Undated' ? '' : yearLabel(cur).replace('-', ' to ')));
+    u.rate = 0.95; u.onend = stopAudio; speechSynthesis.speak(u);
+  } else stopAudio();
+};
+
+function renderEras() {
+  const box = $('eras'); box.innerHTML = '';
+  for (const e of ERAS) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (e.k === era ? ' on' : '');
+    b.textContent = e.label;
+    b.onclick = () => { era = e.k; pinned = false; cur = null; renderEras(); rank(); };
+    box.appendChild(b);
+  }
+}
+function renderSpots() {
+  const s = $('spots'); s.innerHTML = '';
+  for (const sp of SPOTS) {
+    const b = document.createElement('button'); b.className = 'spot';
+    b.innerHTML = sp.name + '<span>' + sp.note + '</span>';
+    b.onclick = () => teleport(sp);
+    s.appendChild(b);
+  }
+}
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 1800); }
+
+let lastHeading = null, rankTimer = null;
+function onHeading(h) {
+  if (h == null || isNaN(h)) return;
+  heading = lastHeading == null ? h : (lastHeading + (((h - lastHeading + 540) % 360) - 180) * 0.25 + 360) % 360;
+  lastHeading = heading;
+  if (!rankTimer) rankTimer = setTimeout(() => { rankTimer = null; rank(); }, 700);
+}
+function startCompass() {
+  const handler = (e) => {
+    if (typeof e.webkitCompassHeading === 'number') onHeading(e.webkitCompassHeading);
+    else if (e.absolute && e.alpha != null) onHeading((360 - e.alpha) % 360);
+  };
+  if ('ondeviceorientationabsolute' in window) addEventListener('deviceorientationabsolute', handler);
+  else addEventListener('deviceorientation', handler);
+}
+async function askCompass() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') return;
+    }
+    startCompass();
+  } catch (e) {}
+}
+async function startCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    const v = $('cam'); v.srcObject = s; v.classList.remove('hidden'); $('now').classList.add('hidden');
+    await v.play().catch(() => {});
+    return true;
+  } catch (e) { return false; }
+}
+function showNowPhoto() { const n = $('now'); n.src = NOW_URL; n.classList.remove('hidden'); $('cam').classList.add('hidden'); }
+
+function teleport(sp) {
+  simulated = true; pos = { lat: sp.lat, lon: sp.lon, name: sp.name };
+  if ($('cam').classList.contains('hidden')) { if (sp.name === PALACE.name) showNowPhoto(); }
+  pinned = false; cur = null; rank();
+  toast(sp.name);
+}
+function openViewer() {
+  $('intro').classList.add('hidden'); $('view').classList.remove('hidden');
+  renderEras(); renderSpots(); setWipe(0.5);
+  history.pushState({ v: 1 }, '', '#look');
+}
+function closeViewer() {
+  stopAudio();
+  const v = $('cam'); if (v.srcObject) { v.srcObject.getTracks().forEach((t) => t.stop()); v.srcObject = null; }
+  $('view').classList.add('hidden'); $('intro').classList.remove('hidden');
+  simulated = false; pos = null; cur = null; pinned = false;
+}
+$('close').onclick = () => history.back();
+addEventListener('popstate', () => { if (!$('view').classList.contains('hidden')) closeViewer(); });
+
+$('go').onclick = async () => {
+  askCompass();
+  openViewer();
+  const camOk = await startCamera();
+  if (!camOk) showNowPhoto();
+  await loadData;
+  if (!navigator.geolocation) { teleport(PALACE); return; }
+  navigator.geolocation.watchPosition((g) => {
+    if (simulated) return;
+    pos = { lat: g.coords.latitude, lon: g.coords.longitude };
+    rank();
+  }, () => { teleport(PALACE); }, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
+};
+$('demo').onclick = async () => {
+  openViewer();
+  showNowPhoto();
+  await loadData;
+  teleport(PALACE);
+};
+addEventListener('resize', () => setWipe(wipeX));
+</script>
+</body>
+</html>
