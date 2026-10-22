@@ -11,6 +11,7 @@
 <style>
 :root{--ink:#f4ede0;--soft:rgba(244,237,224,.68);--faint:rgba(244,237,224,.42);--sepia:#d8b37a;--bg:#0b0a08;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;overscroll-behavior:none}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 button:focus{outline:none}
@@ -93,8 +94,8 @@ button:focus{outline:none}
 
 <section id="view" class="screen hidden">
   <video id="cam" playsinline muted autoplay class="hidden"></video>
-  <img id="now" class="hidden" alt="">
-  <img id="then" alt="">
+  <img id="now" class="hidden" alt="" draggable="false">
+  <img id="then" alt="" draggable="false">
   <div id="wipe"><div class="knob"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 5 3 9l3.5 4M11.5 5 15 9l-3.5 4"/></svg></div></div>
   <div class="tag" id="tagThen">Then</div><div class="tag" id="tagNow">Now</div>
   <div class="topfade"></div><div class="botfade"></div>
@@ -170,7 +171,8 @@ function rank() {
     out = [];
     for (const p of photos) {
       if (p.y1 < e.from || p.y0 > e.to) continue;
-      if (e.k === 'all' && p.y0 <= 1850 && p.y1 >= 1999) continue;
+      if (p.y0 <= 1850 && p.y1 >= 1999) continue;
+      if (e.k !== 'all' && p.y1 - p.y0 > 6) continue;
       const dd = dist(pos.lat, pos.lon, p.lat, p.lon);
       if (dd > radius) continue;
       const br = bearing(pos.lat, pos.lon, p.lat, p.lon);
@@ -195,7 +197,7 @@ function renderStrip() {
   for (const p of list) {
     const b = document.createElement('button');
     b.className = 'th' + (cur && cur.id === p.id ? ' on' : '');
-    b.innerHTML = '<img loading="lazy" alt="" src="' + THUMB(p.id) + '"><span class="yr">' + yearLabel(p) + '</span>' + (AUDIO[p.id] ? '<span class="dot"></span>' : '');
+    b.innerHTML = '<img loading="lazy" alt="" draggable="false" src="' + THUMB(p.id) + '"><span class="yr">' + yearLabel(p) + '</span>' + (AUDIO[p.id] ? '<span class="dot"></span>' : '');
     b.onclick = () => { pinned = true; select(p, true); };
     s.appendChild(b);
   }
@@ -252,10 +254,14 @@ function setWipe(x) {
 let dragging = false, downX = 0, downY = 0;
 $('view').addEventListener('pointerdown', (e) => {
   if (e.target.closest('#bottom,#top button,#empty')) return;
+  e.preventDefault();
+  try { $('view').setPointerCapture(e.pointerId); } catch (err) {}
   dragging = true; downX = e.clientX; downY = e.clientY; setWipe(e.clientX / innerWidth);
 });
+$('view').addEventListener('dragstart', (e) => e.preventDefault());
 addEventListener('pointermove', (e) => { if (dragging) setWipe(e.clientX / innerWidth); });
 addEventListener('pointerup', () => { dragging = false; });
+addEventListener('pointercancel', () => { dragging = false; });
 
 function stopAudio() {
   if (audioEl) { audioEl.pause(); audioEl = null; }
