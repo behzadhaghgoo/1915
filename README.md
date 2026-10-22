@@ -41,3 +41,15 @@ Camera, GPS and compass need HTTPS (or localhost), so test on a phone through Gi
 - Add other city archives (OldNYC uses the same format).
 
 Built for Cal Hacks 13.0 at the Palace of Fine Arts.
+
+## Same camera angle, today
+
+For each archive photo, `rephoto.py` finds where the photographer stood and how they framed the shot, then shows the modern Street View from that exact angle.
+
+1. Candidates: every official Google panorama within 150 m (Street View car imagery only).
+2. Coarse search: DINOv2 similarity between the (grayscale) archive photo and perspective crops of each panorama every 20°.
+3. Fine match: DISK features + LightGlue on the best crops at three fields of view; MAGSAC homography.
+4. Solve: the homography maps the photo's center and edges to rays in the panorama, giving heading, pitch and horizontal field of view; refined twice.
+5. Accept only with 40+ geometric inliers. Results: `data/rephoto.json` = `{photoId: [panoId, lat, lon, heading, pitch, hfov, inliers, date]}`.
+
+In the app, the embed is zoomed so its focal length matches the archive photo as displayed (`object-fit: cover`): Google's embed uses focal = width/2 · 2^(zoom−1). Matched photos show “same angle”; the rest fall back to the nearest panorama, labeled “not matched”. The matcher runs in the background and keeps adding photos.

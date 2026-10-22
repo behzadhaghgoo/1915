@@ -184,11 +184,14 @@ let photos = null, pos = null, heading = null, simulated = false, era = 'all';
 let list = [], cur = null, pinned = false, wipeX = 0.5, audioEl = null;
 
 let SVD = {};
+let RP = {};   // photoId -> [pano, lat, lon, heading, pitch, hfov, inliers, date]: the same camera angle today, solved by feature matching
+let svMatched = false;
 const loadData = Promise.all([
   fetch(DATA_URL).then((r) => r.json()).then((rows) => {
     photos = rows.map((r) => ({ id: r[0], lat: r[1], lon: r[2], y0: r[3], y1: r[4], title: r[5], w: r[6], h: r[7] }));
   }),
   fetch('data/streetview.json').then((r) => r.json()).then((d) => { SVD = d; }).catch(() => {}),
+  fetch('data/rephoto.json').then((r) => r.json()).then((d) => { RP = d; }).catch(() => {}),
 ]);
 
 function dist(a, b, c, d) {
@@ -224,7 +227,7 @@ function rank() {
     if (out.length >= 14 || radius >= 2400) break;
     radius *= 2;
   }
-  out.sort((a, b) => (b.ahead - a.ahead) || ((AUDIO[b.id] ? 1 : 0) - (AUDIO[a.id] ? 1 : 0)) || (a.d - b.d));
+  out.sort((a, b) => (b.ahead - a.ahead) || ((RP[b.id] ? 1 : 0) - (RP[a.id] ? 1 : 0)) || ((AUDIO[b.id] ? 1 : 0) - (AUDIO[a.id] ? 1 : 0)) || (a.d - b.d));
   list = out.slice(0, 60);
   $('empty').classList.toggle('hidden', list.length > 0);
   renderStrip(); renderRadar();
@@ -296,7 +299,7 @@ function setWipe(x) {
 let dragging = false, downX = 0, downY = 0;
 $('view').addEventListener('pointerdown', (e) => {
   if (e.target.closest('#bottom,#top button,#empty,#camnote')) return;
-  if (!(e.target.id === 'then' || e.target.closest('#wipe') || camOn)) return;
+  if (!(e.target.id === 'then' || e.target.closest('#wipe') || camOn || svMatched)) return;
   e.preventDefault();
   try { $('view').setPointerCapture(e.pointerId); } catch (err) {}
   dragging = true; downX = e.clientX; downY = e.clientY; setWipe(e.clientX / innerWidth);
@@ -410,7 +413,29 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 function svDate(d) { const m = /^(\d{4})-(\d{2})/.exec(d || ''); return m ? MONTHS[+m[2] - 1] + ' ' + m[1] : ''; }
 function updateBackdrop() {
   const sv = $('sv');
-  if (camOn || !cur) { sv.classList.add('hidden'); $('svcredit').classList.add('hidden'); $('tagNow').textContent = 'Now'; return; }
+  if (camOn || !cur) { svMatched = false; sv.classList.add('hidden'); $('svcredit').classList.add('hidden'); $('tagNow').textContent = 'Now'; return; }
+  const m = RP[cur.id];
+  if (m) {
+    // Same camera angle as the archive photo. #then is object-fit:cover over #view, so match its scale:
+    // focal (screen px) = coverScale * imageWidth / (2 tan(hfov/2)).
+    // The iframe overhangs #view by M on every side (hides Google's controls) without moving its center.
+    const V = $('view'), vw = V.clientWidth, vh = V.clientHeight, M = 80;
+    const s = Math.max(vw / cur.w, vh / cur.h);
+    const f = s * cur.w / (2 * Math.tan(m[5] * Math.PI / 360));
+    const z = 1 + Math.log2(2 * f / (vw + 2 * M));   // measured: embed focal = width/2 * 2^(z-1), vertical field of view capped at 90°
+    const key = cur.id + '|' + vw + 'x' + vh;
+    sv.style.left = sv.style.top = -M + 'px'; sv.style.width = (vw + 2 * M) + 'px'; sv.style.height = (vh + 2 * M) + 'px';
+    sv.style.pointerEvents = 'none'; svMatched = true;
+    if (key !== svKey) {
+      svKey = key;
+      sv.src = 'https://www.google.com/maps/embed?pb=!4v1!6m8!1m7!1s' + m[0] + '!2m2!1d' + m[1] + '!2d' + m[2] + '!3f' + m[3] + '!4f' + m[4] + '!5f' + z.toFixed(4);
+    }
+    sv.classList.remove('hidden'); $('svcredit').classList.remove('hidden');
+    $('tagNow').textContent = 'Now · ' + svDate(m[7]) + ' · same angle';
+    return;
+  }
+  svMatched = false;
+  sv.style.left = '0'; sv.style.top = '-72px'; sv.style.width = 'calc(100% + 72px)'; sv.style.height = 'calc(100% + 112px)'; sv.style.pointerEvents = '';
   const key = cur.lat + ',' + cur.lon;
   const s = SVD[key];
   if (!s) { sv.classList.add('hidden'); $('svcredit').classList.add('hidden'); svKey = ''; $('tagNow').textContent = 'No Street View'; return; }
@@ -420,7 +445,7 @@ function updateBackdrop() {
     sv.src = 'https://www.google.com/maps/embed?pb=!4v1!6m8!1m7!1s' + s[0] + '!2m2!1d' + s[1] + '!2d' + s[2] + '!3f' + s[3] + '!4f5!5f0.7820865974627469';
   }
   sv.classList.remove('hidden'); $('svcredit').classList.remove('hidden');
-  $('tagNow').textContent = 'Now · ' + svDate(s[4]);
+  $('tagNow').textContent = 'Nearby today · not matched';
   if (!updateBackdrop.hinted) { updateBackdrop.hinted = true; toast('Drag the right side to look around'); }
 }
 
@@ -560,6 +585,7 @@ $('demo').onclick = async () => {
   teleport(PALACE);
 };
 addEventListener('resize', () => setWipe(wipeX));
+window.addEventListener('resize', () => { if (svMatched) updateBackdrop(); });
 </script>
 </body>
 </html>
