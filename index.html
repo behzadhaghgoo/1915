@@ -36,12 +36,14 @@ button:focus{outline:none}
 
 /* viewer */
 #view{background:#000;touch-action:none;user-select:none;-webkit-user-select:none}
-#cam,#now{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#then{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:sepia(.25) contrast(1.06);transition:opacity .35s}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#sv{position:absolute;left:0;top:-72px;width:calc(100% + 72px);height:calc(100% + 112px);border:0;background:#111}
+#svcredit{position:absolute;right:12px;bottom:calc(150px + env(safe-area-inset-bottom));font-size:10px;color:rgba(255,255,255,.7);text-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:none}
+#then{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:sepia(.25) contrast(1.06);transition:opacity .35s;pointer-events:auto}
 #then.loading{opacity:.0}
 #wipe{position:absolute;top:0;bottom:0;width:0;border-left:1px solid rgba(255,255,255,.85);pointer-events:none}
-#wipe .knob{position:absolute;top:50%;left:-19px;width:38px;height:38px;margin-top:-19px;border-radius:50%;background:rgba(11,10,8,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center}
-.tag{position:absolute;top:50%;margin-top:30px;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.6)}
+#wipe .knob{pointer-events:auto;cursor:ew-resize;touch-action:none;position:absolute;top:50%;left:-19px;width:38px;height:38px;margin-top:-19px;border-radius:50%;background:rgba(11,10,8,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center}
+.tag{pointer-events:none;position:absolute;top:50%;margin-top:30px;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.6)}
 #tagNow{right:12px}#tagThen{left:12px}
 .topfade{position:absolute;left:0;right:0;top:0;height:220px;background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,0));pointer-events:none}
 .botfade{position:absolute;left:0;right:0;bottom:0;height:260px;background:linear-gradient(0deg,rgba(0,0,0,.82),rgba(0,0,0,0));pointer-events:none}
@@ -114,16 +116,16 @@ button:focus{outline:none}
     <button class="btn primary" id="go">Look back</button>
     <button class="btn ghost" id="explore">Explore the map</button>
     <button class="btn ghost" id="demo">I'm not in SF, take me to the Palace of Fine Arts</button>
-    <div class="credit">Photographs: San Francisco Historical Photograph Collection, San Francisco Public Library, geocoded by <a href="https://www.oldsf.org" target="_blank" rel="noreferrer">OldSF</a>. Present-day Palace: Carol M. Highsmith, Library of Congress.</div>
+    <div class="credit">Photographs: San Francisco Historical Photograph Collection, San Francisco Public Library, geocoded by <a href="https://www.oldsf.org" target="_blank" rel="noreferrer">OldSF</a>. Present-day views: Google Street View.</div>
   </div>
 </section>
 
 <section id="view" class="screen hidden">
   <video id="cam" playsinline muted autoplay class="hidden"></video>
-  <img id="now" class="hidden" alt="" draggable="false">
+  <iframe id="sv" class="hidden" title="Street View today" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen"></iframe>
   <img id="then" alt="" draggable="false">
   <div id="wipe"><div class="knob"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 5 3 9l3.5 4M11.5 5 15 9l-3.5 4"/></svg></div></div>
-  <div class="tag" id="tagThen">Then</div><div class="tag" id="tagNow">Now</div>
+  <div class="tag" id="tagThen">Then</div><div class="tag" id="tagNow">Now</div><div id="svcredit" class="hidden">Imagery © Google Street View</div>
   <div class="topfade"></div><div class="botfade"></div>
   <div id="top">
     <div class="meta"><div id="year">1915</div><div id="title"></div><div id="where"></div><button id="camnote" class="hidden"></button></div>
@@ -142,7 +144,7 @@ button:focus{outline:none}
   <div id="empty" class="hidden">
     <div class="eyebrow">Nothing from the archive here</div>
     <h2>This archive covers San Francisco.</h2>
-    <p>Keep your camera on and jump to a spot in the city to try it.</p>
+    <p>Jump to a spot in the city to try it. Without a camera, the present-day side is Google Street View.</p>
     <div class="spots" id="spots"></div>
   </div>
 </section>
@@ -159,7 +161,6 @@ button:focus{outline:none}
 
 <script>
 const DATA_URL = 'data/photos.json';
-const NOW_URL = 'img/palace-today.jpg';
 const AUDIO = {"AAE-0670": "audio/AAE-0670.mp3", "AAE-0666": "audio/AAE-0666.mp3", "AAE-0686": "audio/AAE-0686.mp3", "AAE-0693": "audio/AAE-0693.mp3", "AAE-0682": "audio/AAE-0682.mp3"};
 const IMG = (id) => 'https://s3-us-west-1.amazonaws.com/oldsf/images/' + id + '.jpg';
 const THUMB = (id) => 'https://s3-us-west-1.amazonaws.com/oldsf/thumb/' + id + '.jpg';
@@ -182,9 +183,13 @@ const $ = (id) => document.getElementById(id);
 let photos = null, pos = null, heading = null, simulated = false, era = 'all';
 let list = [], cur = null, pinned = false, wipeX = 0.5, audioEl = null;
 
-const loadData = fetch(DATA_URL).then((r) => r.json()).then((rows) => {
-  photos = rows.map((r) => ({ id: r[0], lat: r[1], lon: r[2], y0: r[3], y1: r[4], title: r[5], w: r[6], h: r[7] }));
-});
+let SVD = {};
+const loadData = Promise.all([
+  fetch(DATA_URL).then((r) => r.json()).then((rows) => {
+    photos = rows.map((r) => ({ id: r[0], lat: r[1], lon: r[2], y0: r[3], y1: r[4], title: r[5], w: r[6], h: r[7] }));
+  }),
+  fetch('data/streetview.json').then((r) => r.json()).then((d) => { SVD = d; }).catch(() => {}),
+]);
 
 function dist(a, b, c, d) {
   const R = 6371000, p = Math.PI / 180;
@@ -274,7 +279,7 @@ function select(p, user) {
   const pre = new Image();
   pre.onload = () => { img.src = pre.src; img.classList.remove('loading'); };
   pre.src = IMG(p.id);
-  renderMeta(); renderRadar();
+  renderMeta(); renderRadar(); updateBackdrop();
   document.querySelectorAll('.th').forEach((el, i) => el.classList.toggle('on', list[i] && list[i].id === p.id));
   const on = document.querySelector('.th.on');
   if (on && user) on.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
@@ -291,6 +296,7 @@ function setWipe(x) {
 let dragging = false, downX = 0, downY = 0;
 $('view').addEventListener('pointerdown', (e) => {
   if (e.target.closest('#bottom,#top button,#empty,#camnote')) return;
+  if (!(e.target.id === 'then' || e.target.closest('#wipe') || camOn)) return;
   e.preventDefault();
   try { $('view').setPointerCapture(e.pointerId); } catch (err) {}
   dragging = true; downX = e.clientX; downY = e.clientY; setWipe(e.clientX / innerWidth);
@@ -385,24 +391,37 @@ async function startCamera() {
     try { s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
     catch (e2) {
       const n = (e2 && e2.name) || (e && e.name) || '';
+      updateBackdrop();
       camNote(n === 'NotAllowedError' ? 'Camera blocked' : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No camera found' : n === 'NotReadableError' ? 'Camera busy in another app' : 'Camera unavailable');
       return false;
     }
   }
   v.muted = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
   v.srcObject = s;
-  v.classList.remove('hidden'); $('now').classList.add('hidden');
+  v.classList.remove('hidden'); $('sv').classList.add('hidden'); svKey = '';
   try { await v.play(); } catch (e) {}
   camOn = true; camNote('');
-  s.getVideoTracks().forEach((tr) => tr.addEventListener('ended', () => { camOn = false; v.classList.add('hidden'); camNote('Camera stopped'); }));
+  s.getVideoTracks().forEach((tr) => tr.addEventListener('ended', () => { camOn = false; v.classList.add('hidden'); camNote('Camera stopped'); updateBackdrop(); }));
   return true;
 }
 $('camnote').onclick = async (e) => { e.stopPropagation(); await startCamera(); };
-function showNowPhoto() { const n = $('now'); n.src = NOW_URL; n.classList.remove('hidden'); $('cam').classList.add('hidden'); }
+let svKey = '';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function svDate(d) { const m = /^(\d{4})-(\d{2})/.exec(d || ''); return m ? MONTHS[+m[2] - 1] + ' ' + m[1] : ''; }
 function updateBackdrop() {
-  if (camOn) return;
-  const atPalace = pos && dist(pos.lat, pos.lon, PALACE.lat, PALACE.lon) < 400;
-  if (atPalace) showNowPhoto(); else $('now').classList.add('hidden');
+  const sv = $('sv');
+  if (camOn || !cur) { sv.classList.add('hidden'); $('svcredit').classList.add('hidden'); $('tagNow').textContent = 'Now'; return; }
+  const key = cur.lat + ',' + cur.lon;
+  const s = SVD[key];
+  if (!s) { sv.classList.add('hidden'); $('svcredit').classList.add('hidden'); svKey = ''; $('tagNow').textContent = 'No Street View'; return; }
+  if (key !== svKey) {
+    svKey = key;
+    // Official Google Street View panorama nearest this spot (Google car imagery only), turned to face it.
+    sv.src = 'https://www.google.com/maps/embed?pb=!4v1!6m8!1m7!1s' + s[0] + '!2m2!1d' + s[1] + '!2d' + s[2] + '!3f' + s[3] + '!4f5!5f0.7820865974627469';
+  }
+  sv.classList.remove('hidden'); $('svcredit').classList.remove('hidden');
+  $('tagNow').textContent = 'Now · ' + svDate(s[4]);
+  if (!updateBackdrop.hinted) { updateBackdrop.hinted = true; toast('Drag the right side to look around'); }
 }
 
 function teleport(sp) {
@@ -420,7 +439,7 @@ function openViewer() {
 function closeViewer() {
   stopAudio();
   const v = $('cam'); if (v.srcObject) { v.srcObject.getTracks().forEach((t) => t.stop()); v.srcObject = null; }
-  camOn = false; camNote('');
+  camOn = false; camNote(''); svKey = ''; $('sv').classList.add('hidden'); $('sv').removeAttribute('src');
   if (geoWatch != null) { navigator.geolocation.clearWatch(geoWatch); geoWatch = null; }
   $('view').classList.add('hidden'); $('intro').classList.remove('hidden');
   simulated = false; pos = null; cur = null; pinned = false;
