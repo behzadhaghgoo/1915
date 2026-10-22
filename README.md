@@ -14,9 +14,11 @@ It is named for the Panama-Pacific International Exposition, the 1915 world's fa
 - **What's in front of you.** Every photo has the location of its subject. 1915 computes distance and bearing to each one and ranks photos inside a 70 degree view cone first, then by distance. Turn around and the photo changes.
 - **Then and now.** The archive photo sits over the rear camera feed with a draggable wipe. A small radar shows where the other photos around you are.
 - **Narration.** Five photos at the Palace of Fine Arts have recorded narration (ElevenLabs). Every other photo can be read aloud with the browser's speech engine.
+- **Map.** Every photo location on a dark street map, sized by how many photos were taken there and filtered by era. Tap a spot to preview its photos, then "Look from here" to stand there.
+- **Camera.** The compass permission is requested first (iOS needs it from the tap), then the camera, then location. If the camera fails, the app says why (blocked, none found, busy) with a one-tap retry instead of silently falling back.
 - **Not in SF?** Teleport to the Palace of Fine Arts, the Ferry Building, Market & 4th, Mission Dolores or Crissy Field. Without a camera, a present-day photo of the Palace stands in for the live view.
 
-No build step, no backend: one `index.html`, a 2 MB JSON index, and images served from the archive.
+No build step, no backend: one `index.html` (plus Leaflet from a CDN), a 2 MB JSON index, and images served from the archive.
 
 ## Run it
 

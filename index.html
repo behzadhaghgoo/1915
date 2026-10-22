@@ -8,6 +8,8 @@
 <title>1915: see San Francisco a century ago</title>
 <meta property="og:title" content="1915">
 <meta property="og:description" content="Point your phone at San Francisco and see the same spot a hundred years ago.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 :root{--ink:#f4ede0;--soft:rgba(244,237,224,.68);--faint:rgba(244,237,224,.42);--sepia:#d8b37a;--bg:#0b0a08;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -75,6 +77,29 @@ button:focus{outline:none}
 .spot span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
 #toast{position:absolute;left:50%;top:calc(50% - 90px);transform:translateX(-50%);padding:8px 14px;border-radius:18px;background:rgba(0,0,0,.6);font-size:13px;color:var(--ink);opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1}
+#camnote{pointer-events:auto;margin-top:10px;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:15px;background:rgba(0,0,0,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:12.5px;color:var(--ink)}
+#camnote b{font-weight:600;color:var(--sepia)}
+.topbtns{display:flex;gap:8px}
+#mapview{background:#0b0a08;z-index:5}
+#map{position:absolute;inset:0;background:#141210}
+.leaflet-container{font-family:var(--sans)}
+.leaflet-control-attribution{background:rgba(0,0,0,.5)!important;color:rgba(255,255,255,.55)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:rgba(255,255,255,.7)!important}
+#mapbar{position:absolute;left:0;right:0;top:0;z-index:1000;padding:calc(14px + env(safe-area-inset-top)) 16px 18px;display:flex;align-items:flex-start;gap:10px;background:linear-gradient(180deg,rgba(11,10,8,.85),rgba(11,10,8,0));pointer-events:none}
+#mapbar .meta{flex:1}
+#mapbar h3{font-family:var(--serif);font-weight:400;font-size:30px;margin:6px 0 0;line-height:1}
+#mapbar .iconbtn,#mapbar .chips{pointer-events:auto}
+#mapchips{position:absolute;left:0;right:0;z-index:1000;bottom:calc(16px + env(safe-area-inset-bottom));padding:0 16px}
+#mapcard{position:absolute;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:1001;border-radius:16px;background:rgba(20,18,15,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);padding:14px;max-width:520px;margin:0 auto}
+#mapcard .t{font-size:15px;line-height:1.35}
+#mapcard .s{margin-top:4px;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sepia)}
+#mapcard .row{display:flex;gap:6px;overflow-x:auto;margin:12px 0;scrollbar-width:none}
+#mapcard .row::-webkit-scrollbar{display:none}
+#mapcard .row img{flex:none;width:84px;height:62px;object-fit:cover;border-radius:6px;filter:sepia(.3)}
+#mapcard .btn{height:46px}
+.me{position:relative;width:18px;height:18px}
+.me .d{position:absolute;left:4px;top:4px;width:10px;height:10px;border-radius:50%;background:#7fb3ff;border:2px solid #fff;box-shadow:0 0 0 4px rgba(127,179,255,.25)}
+.me .c{position:absolute;left:-31px;top:-31px;width:80px;height:80px;border-radius:50%;background:conic-gradient(from -35deg,rgba(127,179,255,.35) 0 70deg,transparent 70deg)}
 </style>
 </head>
 <body>
@@ -87,6 +112,7 @@ button:focus{outline:none}
     <h1>1915</h1>
     <p>Point your phone at any corner of the city and see the same spot a hundred years ago. 13,256 photographs from the San Francisco Public Library, placed where they were taken.</p>
     <button class="btn primary" id="go">Look back</button>
+    <button class="btn ghost" id="explore">Explore the map</button>
     <button class="btn ghost" id="demo">I'm not in SF, take me to the Palace of Fine Arts</button>
     <div class="credit">Photographs: San Francisco Historical Photograph Collection, San Francisco Public Library, geocoded by <a href="https://www.oldsf.org" target="_blank" rel="noreferrer">OldSF</a>. Present-day Palace: Carol M. Highsmith, Library of Congress.</div>
   </div>
@@ -100,8 +126,9 @@ button:focus{outline:none}
   <div class="tag" id="tagThen">Then</div><div class="tag" id="tagNow">Now</div>
   <div class="topfade"></div><div class="botfade"></div>
   <div id="top">
-    <div class="meta"><div id="year">1915</div><div id="title"></div><div id="where"></div></div>
-    <button class="iconbtn" id="close" aria-label="Back"><svg width="16" height="16" viewBox="0 0 16 16" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+    <div class="meta"><div id="year">1915</div><div id="title"></div><div id="where"></div><button id="camnote" class="hidden"></button></div>
+    <div class="topbtns"><button class="iconbtn" id="mapbtn" aria-label="Map"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 4.5l4-1.5 5 2 4-1.5v10l-4 1.5-5-2-4 1.5z"/><path d="M6.5 3v10M11.5 5v10"/></svg></button>
+    <button class="iconbtn" id="close" aria-label="Back"><svg width="16" height="16" viewBox="0 0 16 16" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button></div>
   </div>
   <div id="bottom">
     <div id="controls">
@@ -118,6 +145,16 @@ button:focus{outline:none}
     <p>Keep your camera on and jump to a spot in the city to try it.</p>
     <div class="spots" id="spots"></div>
   </div>
+</section>
+
+<section id="mapview" class="screen hidden">
+  <div id="map"></div>
+  <div id="mapbar">
+    <div class="meta"><div class="eyebrow" id="mapcount">San Francisco archive</div><h3>Where the photos are</h3></div>
+    <button class="iconbtn" id="mapclose" aria-label="Close map"><svg width="16" height="16" viewBox="0 0 16 16" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button>
+  </div>
+  <div id="mapcard" class="hidden"></div>
+  <div id="mapchips"><div class="chips" id="maperas"></div></div>
 </section>
 
 <script>
@@ -253,7 +290,7 @@ function setWipe(x) {
 }
 let dragging = false, downX = 0, downY = 0;
 $('view').addEventListener('pointerdown', (e) => {
-  if (e.target.closest('#bottom,#top button,#empty')) return;
+  if (e.target.closest('#bottom,#top button,#empty,#camnote')) return;
   e.preventDefault();
   try { $('view').setPointerCapture(e.pointerId); } catch (err) {}
   dragging = true; downX = e.clientX; downY = e.clientY; setWipe(e.clientX / innerWidth);
@@ -283,13 +320,15 @@ $('listen').onclick = () => {
 };
 
 function renderEras() {
-  const box = $('eras'); box.innerHTML = '';
-  for (const e of ERAS) {
-    const b = document.createElement('button');
-    b.className = 'chip' + (e.k === era ? ' on' : '');
-    b.textContent = e.label;
-    b.onclick = () => { era = e.k; pinned = false; cur = null; renderEras(); rank(); };
-    box.appendChild(b);
+  for (const id of ['eras', 'maperas']) {
+    const box = $(id); box.innerHTML = '';
+    for (const e of ERAS) {
+      const b = document.createElement('button');
+      b.className = 'chip' + (e.k === era ? ' on' : '');
+      b.textContent = e.label;
+      b.onclick = () => { era = e.k; pinned = false; cur = null; renderEras(); rank(); if (map) renderLocs(); };
+      box.appendChild(b);
+    }
   }
 }
 function renderSpots() {
@@ -308,7 +347,7 @@ function onHeading(h) {
   if (h == null || isNaN(h)) return;
   heading = lastHeading == null ? h : (lastHeading + (((h - lastHeading + 540) % 360) - 180) * 0.25 + 360) % 360;
   lastHeading = heading;
-  if (!rankTimer) rankTimer = setTimeout(() => { rankTimer = null; rank(); }, 700);
+  if (!rankTimer) rankTimer = setTimeout(() => { rankTimer = null; rank(); updateMe(); }, 700);
 }
 function startCompass() {
   const handler = (e) => {
@@ -322,28 +361,58 @@ async function askCompass() {
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission();
-      if (r !== 'granted') return;
+      if (r !== 'granted') return false;
     }
     startCompass();
-  } catch (e) {}
-}
-async function startCamera() {
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-    const v = $('cam'); v.srcObject = s; v.classList.remove('hidden'); $('now').classList.add('hidden');
-    await v.play().catch(() => {});
     return true;
   } catch (e) { return false; }
 }
+let camOn = false;
+function camNote(msg) {
+  const n = $('camnote');
+  if (!msg) { n.classList.add('hidden'); return; }
+  n.innerHTML = msg + ' · <b>Try again</b>';
+  n.classList.remove('hidden');
+}
+async function startCamera() {
+  const v = $('cam');
+  if (!window.isSecureContext) { camNote('Camera needs HTTPS'); return false; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { camNote('This browser has no camera access'); return false; }
+  let s = null;
+  try {
+    s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  } catch (e) {
+    try { s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
+    catch (e2) {
+      const n = (e2 && e2.name) || (e && e.name) || '';
+      camNote(n === 'NotAllowedError' ? 'Camera blocked' : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No camera found' : n === 'NotReadableError' ? 'Camera busy in another app' : 'Camera unavailable');
+      return false;
+    }
+  }
+  v.muted = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+  v.srcObject = s;
+  v.classList.remove('hidden'); $('now').classList.add('hidden');
+  try { await v.play(); } catch (e) {}
+  camOn = true; camNote('');
+  s.getVideoTracks().forEach((tr) => tr.addEventListener('ended', () => { camOn = false; v.classList.add('hidden'); camNote('Camera stopped'); }));
+  return true;
+}
+$('camnote').onclick = async (e) => { e.stopPropagation(); await startCamera(); };
 function showNowPhoto() { const n = $('now'); n.src = NOW_URL; n.classList.remove('hidden'); $('cam').classList.add('hidden'); }
+function updateBackdrop() {
+  if (camOn) return;
+  const atPalace = pos && dist(pos.lat, pos.lon, PALACE.lat, PALACE.lon) < 400;
+  if (atPalace) showNowPhoto(); else $('now').classList.add('hidden');
+}
 
 function teleport(sp) {
   simulated = true; pos = { lat: sp.lat, lon: sp.lon, name: sp.name };
-  if ($('cam').classList.contains('hidden')) { if (sp.name === PALACE.name) showNowPhoto(); }
-  pinned = false; cur = null; rank();
+  updateBackdrop();
+  pinned = false; cur = null; rank(); updateMe();
   toast(sp.name);
 }
 function openViewer() {
+  if (!$('view').classList.contains('hidden')) return;
   $('intro').classList.add('hidden'); $('view').classList.remove('hidden');
   renderEras(); renderSpots(); setWipe(0.5);
   history.pushState({ v: 1 }, '', '#look');
@@ -351,28 +420,123 @@ function openViewer() {
 function closeViewer() {
   stopAudio();
   const v = $('cam'); if (v.srcObject) { v.srcObject.getTracks().forEach((t) => t.stop()); v.srcObject = null; }
+  camOn = false; camNote('');
+  if (geoWatch != null) { navigator.geolocation.clearWatch(geoWatch); geoWatch = null; }
   $('view').classList.add('hidden'); $('intro').classList.remove('hidden');
   simulated = false; pos = null; cur = null; pinned = false;
 }
-$('close').onclick = () => history.back();
-addEventListener('popstate', () => { if (!$('view').classList.contains('hidden')) closeViewer(); });
 
-$('go').onclick = async () => {
-  askCompass();
-  openViewer();
-  const camOk = await startCamera();
-  if (!camOk) showNowPhoto();
+/* ---------- map ---------- */
+let map = null, locLayer = null, meMarker = null, locs = null, mapFromIntro = false;
+function buildLocs() {
+  const m = new Map();
+  for (const p of photos) {
+    const k = p.lat + ',' + p.lon;
+    if (!m.has(k)) m.set(k, { lat: p.lat, lon: p.lon, items: [] });
+    m.get(k).items.push(p);
+  }
+  locs = [...m.values()];
+}
+function inEra(p) {
+  const e = ERAS.find((x) => x.k === era);
+  if (p.y1 < e.from || p.y0 > e.to) return false;
+  if (p.y0 <= 1850 && p.y1 >= 1999) return false;
+  if (e.k !== 'all' && p.y1 - p.y0 > 6) return false;
+  return true;
+}
+function renderLocs() {
+  if (!map || !locs) return;
+  if (locLayer) locLayer.remove();
+  locLayer = L.layerGroup();
+  let n = 0;
+  for (const l of locs) {
+    const items = l.items.filter(inEra);
+    if (!items.length) continue;
+    n += items.length;
+    const c = L.circleMarker([l.lat, l.lon], { radius: Math.min(14, 3 + Math.sqrt(items.length) * 1.4), color: '#d8b37a', weight: 1, fillColor: '#d8b37a', fillOpacity: 0.45, bubblingMouseEvents: false });
+    c.on('click', () => showCard(l, items));
+    locLayer.addLayer(c);
+  }
+  locLayer.addTo(map);
+  $('mapcount').textContent = n.toLocaleString() + ' photos · ' + (ERAS.find((x) => x.k === era).label);
+}
+function showCard(l, items) {
+  items = items.slice().sort((a, b) => a.y0 - b.y0);
+  const y0 = items[0].y0, y1 = items[items.length - 1].y1;
+  const card = $('mapcard');
+  card.innerHTML = '<div class="t">' + cleanTitle(items[0].title) + '</div><div class="s">' + items.length + ' photo' + (items.length > 1 ? 's' : '') + ' · ' + (y0 === y1 ? y0 : y0 + '-' + y1) + '</div><div class="row">' + items.slice(0, 12).map((p) => '<img draggable="false" loading="lazy" alt="" src="' + THUMB(p.id) + '">').join('') + '</div><button class="btn primary" id="lookhere">Look from here</button>';
+  card.classList.remove('hidden');
+  $('lookhere').onclick = () => {
+    const name = cleanTitle(items[0].title).split(/[,;]/)[0].slice(0, 40);
+    closeMap(true);
+    openViewer();
+    teleport({ lat: l.lat, lon: l.lon, name });
+  };
+}
+function updateMe() {
+  if (!map) return;
+  if (!pos) { if (meMarker) { meMarker.remove(); meMarker = null; } return; }
+  const html = '<div class="me">' + (heading != null ? '<div class="c" style="transform:rotate(' + heading + 'deg)"></div>' : '') + '<div class="d"></div></div>';
+  const icon = L.divIcon({ className: '', html, iconSize: [18, 18], iconAnchor: [9, 9] });
+  if (!meMarker) meMarker = L.marker([pos.lat, pos.lon], { icon, interactive: false, zIndexOffset: 1000 }).addTo(map);
+  else { meMarker.setLatLng([pos.lat, pos.lon]); meMarker.setIcon(icon); }
+}
+async function openMap(fromIntro) {
+  mapFromIntro = !!fromIntro;
+  $('mapview').classList.remove('hidden');
+  renderEras();
+  history.pushState({ m: 1 }, '', '#map');
   await loadData;
+  if (!locs) buildLocs();
+  if (!window.L) { $('mapcount').textContent = 'Map failed to load'; return; }
+  if (!map) {
+    map = L.map('map', { zoomControl: false, preferCanvas: true, attributionControl: true }).setView([37.785, -122.44], 13);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, maxNativeZoom: 16, attribution: 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, maxNativeZoom: 16, pane: 'shadowPane' }).addTo(map);
+    map.on('click', () => $('mapcard').classList.add('hidden'));
+  }
+  setTimeout(() => {
+    map.invalidateSize();
+    if (pos && dist(pos.lat, pos.lon, 37.77, -122.44) < 15000) map.setView([pos.lat, pos.lon], 15);
+  }, 0);
+  renderLocs(); updateMe();
+}
+function closeMap(viaLook) {
+  $('mapview').classList.add('hidden'); $('mapcard').classList.add('hidden');
+  if (history.state && history.state.m) { mapClosing = true; history.back(); }
+}
+let mapClosing = false;
+$('mapbtn').onclick = () => openMap(false);
+$('explore').onclick = () => openMap(true);
+$('mapclose').onclick = () => closeMap(false);
+
+$('close').onclick = () => history.back();
+addEventListener('popstate', () => {
+  if (mapClosing) { mapClosing = false; return; }
+  if (!$('mapview').classList.contains('hidden')) { $('mapview').classList.add('hidden'); $('mapcard').classList.add('hidden'); return; }
+  if (!$('view').classList.contains('hidden')) closeViewer();
+});
+
+let geoWatch = null;
+function startLocation() {
   if (!navigator.geolocation) { teleport(PALACE); return; }
-  navigator.geolocation.watchPosition((g) => {
+  let got = false;
+  geoWatch = navigator.geolocation.watchPosition((g) => {
+    got = true;
     if (simulated) return;
     pos = { lat: g.coords.latitude, lon: g.coords.longitude };
-    rank();
-  }, () => { teleport(PALACE); }, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
+    updateBackdrop(); rank(); updateMe();
+  }, () => { if (!got) { toast('Location unavailable'); teleport(PALACE); } }, { enableHighAccuracy: true, maximumAge: 4000, timeout: 15000 });
+}
+$('go').onclick = async () => {
+  await askCompass();          // iOS: must come first, from the tap, on its own
+  openViewer();
+  await startCamera();         // then the camera prompt
+  await loadData;
+  startLocation();             // then location
 };
 $('demo').onclick = async () => {
   openViewer();
-  showNowPhoto();
   await loadData;
   teleport(PALACE);
 };
